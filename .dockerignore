@@ -1,0 +1,16 @@
+.venv
+venv
+__pycache__
+*.pyc
+.git
+.gitignore
+*.md
+.env
+.env.*
+!.env.example
+.DS_Store
+media
+*.db
+*.sqlite3
+.pytest_cache
+.mypy_cache
