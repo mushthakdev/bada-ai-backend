@@ -384,7 +384,8 @@ def assistant_chat(
             conversation_id=conversation.id,
             role="assistant",
             content=reply,
-            meta_json=json.dumps(meta),
+            # default=str covers UUID/date/Decimal leftovers from tool payloads
+            meta_json=json.dumps(meta, default=str),
         )
     )
     db.commit()

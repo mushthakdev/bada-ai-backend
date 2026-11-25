@@ -79,6 +79,27 @@ PLATFORM_ALIASES = {
     "tv": "ctv",
     "ott": "ott",
     "streaming": "ott",
+    "jiohotstar": "jiohotstar",
+    "hotstar": "jiohotstar",
+    "disney hotstar": "jiohotstar",
+    "jiocinema": "jiohotstar",
+    "jio cinema": "jiohotstar",
+    "sonyliv": "sonyliv",
+    "sony liv": "sonyliv",
+    "sony": "sonyliv",
+    "zee5": "zee5",
+    "zee": "zee5",
+    "amazon_prime": "amazon_prime",
+    "amazon prime": "amazon_prime",
+    "prime": "amazon_prime",
+    "prime video": "amazon_prime",
+    "mx_player": "mx_player",
+    "mx player": "mx_player",
+    "mxplayer": "mx_player",
+    "netflix": "netflix",
+    "aha": "aha",
+    "sunnxt": "sunnxt",
+    "sun nxt": "sunnxt",
     "publishers": "publishers",
     "publisher": "publishers",
     "digital": "publishers",
@@ -735,22 +756,37 @@ def _start_advertising(db: Session, user: User, campaign_id: UUID, platforms: li
     if has_channels and row:
         try:
             detail = launch_omnichannel(db, user, campaign_id)
-            return {"ok": True, "mode": "omnichannel", "detail": detail, "status": detail.get("status")}
+            launch = detail.get("launch") or {}
+            return {
+                "ok": True,
+                "mode": "omnichannel",
+                "status": detail.get("status") or "active",
+                "campaign_id": str(campaign_id),
+                "active_count": launch.get("active_count"),
+                "failed_count": launch.get("failed_count"),
+                "partial_launch": launch.get("partial_launch"),
+            }
         except ValidationAppError as exc:
             # Fall back to status transition
             if campaign.status == "scheduled":
                 out = campaign_service.transition_status(db, user, campaign_id, "active")
-                return {"ok": True, "mode": "status", "status": out.status, "warning": str(exc)}
+                return {
+                    "ok": True,
+                    "mode": "status",
+                    "status": out.status,
+                    "campaign_id": str(campaign_id),
+                    "warning": str(exc),
+                }
             raise
 
     if campaign.status == "scheduled":
         out = campaign_service.transition_status(db, user, campaign_id, "active")
-        return {"ok": True, "mode": "status", "status": out.status}
+        return {"ok": True, "mode": "status", "status": out.status, "campaign_id": str(campaign_id)}
     if campaign.status == "active":
-        return {"ok": True, "mode": "already_active", "status": "active"}
+        return {"ok": True, "mode": "already_active", "status": "active", "campaign_id": str(campaign_id)}
 
     out = campaign_service.transition_status(db, user, campaign_id, "active")
-    return {"ok": True, "mode": "status", "status": out.status}
+    return {"ok": True, "mode": "status", "status": out.status, "campaign_id": str(campaign_id)}
 
 
 def _create_from_draft(

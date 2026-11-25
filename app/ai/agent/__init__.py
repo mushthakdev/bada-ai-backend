@@ -1,4 +1,4 @@
-"""Bada Agent — conversational work handler for campaigns, metrics, and studio."""
+"""Bada autonomous advertising agent."""
 
 from app.ai.agent.runner import run_agent
 

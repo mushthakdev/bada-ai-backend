@@ -1,4 +1,4 @@
-"""Orchestrate Bada Agent: plan → tools → reply."""
+"""Orchestrate Bada Agent: controlled state machine → tools → reply."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.ai.agent.prompts import AGENT_SYSTEM_PROMPT, AGENT_USER_TEMPLATE
-from app.ai.agent.setup import handle_setup_turn
 from app.ai.agent.tools import (
     build_account_context,
     collect_actions,
@@ -66,7 +65,6 @@ def _parse_agent_json(raw: Any) -> Optional[dict[str, Any]]:
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
-        # Try to extract first JSON object
         start, end = text.find("{"), text.rfind("}")
         if start >= 0 and end > start:
             try:
@@ -95,7 +93,6 @@ def _llm_plan(message: str, context_text: str, history: str) -> Optional[dict[st
         message=message,
     )
     try:
-        # Prefer chat helper if present; fall back to generate()
         if hasattr(provider, "generate_agent"):
             result = provider.generate_agent(prompt, system=AGENT_SYSTEM_PROMPT)
         else:
@@ -106,7 +103,7 @@ def _llm_plan(message: str, context_text: str, history: str) -> Optional[dict[st
         return None
 
 
-def _enrich_reply(reply: str, tool_results: list[dict[str, Any]]) -> str:
+def enrich_reply(reply: str, tool_results: list[dict[str, Any]]) -> str:
     parts = [reply.strip()] if reply.strip() else []
 
     for result in tool_results:
@@ -144,12 +141,15 @@ def _enrich_reply(reply: str, tool_results: list[dict[str, Any]]) -> str:
             if caps:
                 parts.append("I can:\n- " + "\n- ".join(caps))
 
-    # Deduplicate consecutive identical paragraphs
     cleaned: list[str] = []
     for p in parts:
         if not cleaned or cleaned[-1] != p:
             cleaned.append(p)
     return "\n\n".join(cleaned).strip()
+
+
+# Back-compat alias
+_enrich_reply = enrich_reply
 
 
 def run_agent(
@@ -160,31 +160,36 @@ def run_agent(
     conversation_id: UUID,
     business_id: Optional[UUID] = None,
 ) -> dict[str, Any]:
-    ctx = build_account_context(db, user, business_id=business_id)
     conversation = db.query(AIConversation).filter(AIConversation.id == conversation_id).first()
+    if conversation is None:
+        return {
+            "reply": "Conversation not found.",
+            "actions": [],
+            "suggestions": [],
+            "select": None,
+            "tool_results": [],
+            "data_quality": {"is_simulated": False, "label": "Live"},
+            "is_mock_llm": True,
+            "provider": "error",
+        }
 
-    # Guided campaign setup (area → pincode → objective → …) takes priority
-    if conversation is not None:
-        setup_result = handle_setup_turn(db, user, conversation, message, ctx)
-        if setup_result and setup_result.get("handled"):
-            dq = (ctx.get("metrics") or {}).get("data_quality") or {
-                "is_simulated": False,
-                "label": "Live",
-            }
-            return {
-                "reply": setup_result.get("reply") or "",
-                "actions": setup_result.get("actions") or [],
-                "suggestions": setup_result.get("suggestions") or [],
-                "select": setup_result.get("select"),
-                "tool_results": setup_result.get("tool_results") or [],
-                "data_quality": dq,
-                "is_mock_llm": True,
-                "provider": "setup_wizard",
-            }
+    # Primary path: controlled orchestrator (requirements → inventory → plans)
+    from app.ai.agent.orchestrator import handle_orchestrator_turn
 
+    result = handle_orchestrator_turn(
+        db,
+        user,
+        conversation,
+        message,
+        business_id=business_id,
+    )
+    if result.get("provider") == "orchestrator":
+        return result
+
+    # Fallback LLM / rules path (should be rare)
+    ctx = build_account_context(db, user, business_id=business_id)
     context_text = context_as_text(ctx)
     history = _history_text(db, conversation_id)
-
     plan = _llm_plan(message, context_text, history)
     used_llm = plan is not None
     if not plan:
@@ -198,9 +203,8 @@ def run_agent(
         ctx=ctx,
         business_id=business_id,
     )
-    reply = _enrich_reply(str(plan.get("reply") or ""), tool_results)
+    reply = enrich_reply(str(plan.get("reply") or ""), tool_results)
     actions = collect_actions(tool_results)
-
     provider_name = "gemini" if used_llm and not settings.ai_mock_mode else "rules"
     return {
         "reply": reply,

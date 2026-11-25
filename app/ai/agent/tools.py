@@ -307,12 +307,13 @@ def tool_help(_db: Session, _user: User, _args: dict[str, Any], **_: Any) -> dic
         "ok": True,
         "tool": "help",
         "capabilities": [
-            "Guided campaign setup (area → pincode → objective → budget)",
-            "Create a draft campaign with target pincodes",
-            "List your campaigns",
-            "Summarise spend, impressions, QR scans, leads",
+            "Understand incomplete or complete advertising briefs",
+            "Ask only the next necessary requirement question",
+            "Search and rank registered inventory across vendors",
+            "Discover external opportunities when inventory gaps exist (no invented prices)",
+            "Optimize budget into alternative plans from real inventory",
+            "Create draft campaigns and summarise live account metrics",
             "Open Studio, Marketplace, Reports, Omnichannel planner",
-            "Explain next steps to go live",
         ],
     }
 

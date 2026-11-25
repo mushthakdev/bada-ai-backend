@@ -8,10 +8,10 @@ from app.integrations.advertising.providers import (
     CTVProvider,
     LocalScreenProvider,
     MetaAdsProvider,
-    OTTProvider,
     OutdoorProvider,
     PublisherProvider,
     YouTubeAdsProvider,
+    build_ott_platform_providers,
 )
 
 
@@ -21,7 +21,7 @@ def get_provider_registry() -> dict[str, AdvertisingProvider]:
         MetaAdsProvider(),
         YouTubeAdsProvider(),
         CTVProvider(),
-        OTTProvider(),
+        *build_ott_platform_providers(),
         PublisherProvider(),
         LocalScreenProvider(),
         OutdoorProvider(),

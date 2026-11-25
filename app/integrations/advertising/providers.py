@@ -151,30 +151,142 @@ class CTVProvider(SimulatedProvider):
         self.integration_mode = IntegrationMode.PARTNER
 
 
+def _ott_capabilities(
+    *,
+    estimated_cpm: float = 320,
+    min_daily_budget: float = 2000,
+    notes: str | None = None,
+) -> ProviderCapabilities:
+    return ProviderCapabilities(
+        objectives=[
+            "brand_awareness",
+            "reach",
+            "video_views",
+            "website_traffic",
+            "store_visits",
+            "lead_generation",
+        ],
+        ad_formats=["ott_15s", "ott_30s", "ott_bumper"],
+        targeting=["location", "state", "city", "language"],
+        budget_types=["total"],
+        metrics=["impressions", "completed_views", "spend"],
+        supports_oauth=False,
+        supports_auto_launch=False,
+        min_daily_budget=min_daily_budget,
+        pricing_model="cpm",
+        estimated_cpm=estimated_cpm,
+        notes=notes
+        or (
+            "OTT inventory is partner-managed. Most streaming platforms do not offer "
+            "unrestricted self-serve APIs — Bada uses approved partners or manual workflows."
+        ),
+    )
+
+
 class OTTProvider(SimulatedProvider):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        code: str = "ott",
+        name: str = "OTT Streaming",
+        *,
+        estimated_cpm: float = 320,
+        min_daily_budget: float = 2000,
+        notes: str | None = None,
+    ) -> None:
         super().__init__(
-            "ott",
-            "OTT Streaming",
+            code,
+            name,
             "ctv_ott",
-            ProviderCapabilities(
-                objectives=["brand_awareness", "reach", "video_views"],
-                ad_formats=["ott_15s", "ott_30s"],
-                targeting=["location", "state", "city", "language"],
-                budget_types=["total"],
-                metrics=["impressions", "completed_views", "spend"],
-                supports_oauth=False,
-                supports_auto_launch=False,
-                min_daily_budget=2000,
-                pricing_model="cpm",
-                estimated_cpm=320,
-                notes=(
-                    "Netflix and many OTT platforms do not offer unrestricted self-serve APIs. "
-                    "Bada uses partner-managed or manual workflows unless an approved integration exists."
-                ),
+            _ott_capabilities(
+                estimated_cpm=estimated_cpm,
+                min_daily_budget=min_daily_budget,
+                notes=notes,
             ),
         )
         self.integration_mode = IntegrationMode.PARTNER
+
+
+# India-focused OTT platforms (partner / manual — not self-serve APIs)
+OTT_PLATFORM_SPECS: list[dict[str, Any]] = [
+    {
+        "code": "jiohotstar",
+        "name": "JioHotstar",
+        "estimated_cpm": 340,
+        "min_daily_budget": 2500,
+        "notes": "JioHotstar (Hotstar + JioCinema) inventory via partners. Not a public self-serve ads API.",
+    },
+    {
+        "code": "sonyliv",
+        "name": "Sony LIV",
+        "estimated_cpm": 300,
+        "min_daily_budget": 2000,
+        "notes": "Sony LIV streaming ads via approved media partners.",
+    },
+    {
+        "code": "zee5",
+        "name": "ZEE5",
+        "estimated_cpm": 280,
+        "min_daily_budget": 1800,
+        "notes": "ZEE5 AVOD / SVOD inventory through partner buying.",
+    },
+    {
+        "code": "amazon_prime",
+        "name": "Amazon Prime Video",
+        "estimated_cpm": 360,
+        "min_daily_budget": 3000,
+        "notes": "Prime Video / Amazon miniTV reach via partner or Amazon Ads where eligible.",
+    },
+    {
+        "code": "mx_player",
+        "name": "MX Player",
+        "estimated_cpm": 220,
+        "min_daily_budget": 1500,
+        "notes": "MX Player AVOD inventory — strong for vernacular and mobile-first reach.",
+    },
+    {
+        "code": "netflix",
+        "name": "Netflix",
+        "estimated_cpm": 450,
+        "min_daily_budget": 5000,
+        "notes": "Netflix does not offer unrestricted self-serve APIs. Partner / brand deals only where available.",
+    },
+    {
+        "code": "aha",
+        "name": "aha",
+        "estimated_cpm": 200,
+        "min_daily_budget": 1200,
+        "notes": "aha (Telugu / Tamil OTT) via regional media partners.",
+    },
+    {
+        "code": "sunnxt",
+        "name": "Sun NXT",
+        "estimated_cpm": 210,
+        "min_daily_budget": 1200,
+        "notes": "Sun NXT South Indian language streaming via partners.",
+    },
+]
+
+
+def build_ott_platform_providers() -> list[OTTProvider]:
+    providers = [
+        OTTProvider(
+            notes=(
+                "Generic OTT / streaming inventory via approved partners "
+                "(not unrestricted APIs)."
+            )
+        )
+    ]
+    for spec in OTT_PLATFORM_SPECS:
+        providers.append(
+            OTTProvider(
+                spec["code"],
+                spec["name"],
+                estimated_cpm=float(spec["estimated_cpm"]),
+                min_daily_budget=float(spec["min_daily_budget"]),
+                notes=str(spec["notes"]),
+            )
+        )
+    return providers
 
 
 class PublisherProvider(SimulatedProvider):

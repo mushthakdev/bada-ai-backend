@@ -191,7 +191,8 @@ def create_omnichannel_campaign(
 def get_omnichannel_detail(db: Session, user: User, campaign_id: UUID) -> dict[str, Any]:
     campaign = get_campaign(db, user, campaign_id)
     channels = _channel_rows(db, campaign.id)
-    base = _serialize_campaign(campaign).model_dump()
+    # mode="json" so UUID/date fields are strings (safe for json.dumps / agent meta)
+    base = _serialize_campaign(campaign).model_dump(mode="json")
     base["is_omnichannel"] = campaign.is_omnichannel
     base["media_plan"] = json.loads(campaign.media_plan_json) if campaign.media_plan_json else None
     base["launch_summary"] = (

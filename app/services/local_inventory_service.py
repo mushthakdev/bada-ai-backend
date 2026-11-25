@@ -150,9 +150,13 @@ def _serialize_provider(p: LocalAdProvider) -> dict[str, Any]:
 
 
 def _serialize_listing(r: LocalInventoryListing) -> dict[str, Any]:
+    provider_name = None
+    if getattr(r, "provider", None) is not None:
+        provider_name = r.provider.business_name
     return {
         "id": str(r.id),
         "provider_id": str(r.provider_id),
+        "provider_name": provider_name,
         "title": r.title,
         "inventory_type": r.inventory_type,
         "address": r.address,
